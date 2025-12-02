@@ -1,47 +1,53 @@
 package com.example.kokoro_test
 
 import android.os.Bundle
+import android.widget.Button
+import android.widget.EditText
+import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.kokoro_test.ui.theme.Kokoro_TestTheme
 
 class MainActivity : ComponentActivity() {
+
+    private var kokoroEngine: KokoroEngine? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            Kokoro_TestTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+        setContentView(R.layout.activity_main)
+
+        val inputText = findViewById<EditText>(R.id.inputText)
+        val btnSpeak = findViewById<Button>(R.id.btnSpeak)
+
+        // Initialize Kokoro TTS engine
+        try {
+            kokoroEngine = KokoroEngine(assets)
+            Toast.makeText(this, "TTS engine ready", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "Failed to init TTS: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+
+        btnSpeak.setOnClickListener {
+            val text = inputText.text.toString()
+
+            if (text.isBlank()) {
+                Toast.makeText(this, "Please type some text", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
+
+            val engine = kokoroEngine
+            if (engine == null) {
+                Toast.makeText(this, "TTS engine not ready", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            // Speak the text
+            engine.speak(text)
         }
     }
-}
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    Kokoro_TestTheme {
-        Greeting("Android")
+    override fun onDestroy() {
+        super.onDestroy()
+        kokoroEngine?.close()
+        kokoroEngine = null
     }
 }

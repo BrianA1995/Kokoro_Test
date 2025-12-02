@@ -14,48 +14,43 @@ class KokoroEngine(private val assetManager: AssetManager) {
     init {
         Log.i(tag, "Initializing Kokoro TTS engine...")
 
+        // 1. Log assets, we saw from your last log this is all good.
         logAssets(assetManager)
 
-        // IMPORTANT: paths are relative to assets/
-        val modelPath = "kokoro-en-v0_19/model.onnx"
-        val voicesPath = "kokoro-en-v0_19/voices.bin"
-        val tokensPath = "kokoro-en-v0_19/tokens.txt" // this file exists in your asset listing
-        val dataDirPath = "kokoro-en-v0_19/espeak-ng-data"
+        // 2. Build Kokoro-only model config
+        val kokoro = OfflineTtsKokoroModelConfig(
+            model = "kokoro-en-v0_19/model.onnx",
+            voices = "kokoro-en-v0_19/voices.bin",
+            // tokens is optional for Kokoro; can stay empty
+            tokens = "",
+            lexicon = "",
+            dataDir = "kokoro-en-v0_19/espeak-ng-data",
+            lengthScale = 1.0f,
+            lang = "en"
+        )
 
-        Log.i(tag, "Using Kokoro paths: model=$modelPath, voices=$voicesPath, tokens=$tokensPath, dataDir=$dataDirPath")
+        // 3. Build the model config, explicitly using only kokoro
+        val modelConfig = OfflineTtsModelConfig(
+            // leave all others at default
+            kokoro = kokoro,
+            numThreads = 2,
+            debug = true,
+            provider = "cpu"
+        )
 
-        // 1. Build Kokoro model config via builder API (if available in your AAR)
-        val kokoroConfig = OfflineTtsKokoroModelConfig
-            .builder()
-            .setModel(modelPath)
-            .setVoices(voicesPath)
-            .setTokens(tokensPath)
-            .setDataDir(dataDirPath)
-            .setLengthScale(1.0f)
-            .setLang("en")
-            .build()
+        val config = OfflineTtsConfig(
+            model = modelConfig,
+            maxNumSentences = 1
+        )
 
-        // 2. Build TTS model config, only setting Kokoro
-        val modelConfig = OfflineTtsModelConfig
-            .builder()
-            .setKokoro(kokoroConfig)
-            .setNumThreads(2)
-            .setDebug(true)
-            .setProvider("cpu")
-            .build()
+        Log.i(tag, "Final TTS config: $config")
 
-        // 3. Build full config
-        val config = OfflineTtsConfig
-            .builder()
-            .setModel(modelConfig)
-            .setMaxNumSentences(1)
-            .build()
-
-        Log.i(tag, "Final TTS config (builder): $config")
-
-        // 4. Use assetManager constructor so it reads from assets/
+        // 4. Create the TTS engine
         try {
-            tts = OfflineTts(assetManager, config)
+            tts = OfflineTts(
+                assetManager = assetManager,
+                config = config
+            )
             Log.i(tag, "Kokoro TTS engine initialized successfully")
             Log.i(tag, "Sample rate: ${tts.sampleRate()}")
         } catch (e: Exception) {
@@ -79,8 +74,7 @@ class KokoroEngine(private val assetManager: AssetManager) {
 
             val requiredFiles = listOf(
                 "kokoro-en-v0_19/model.onnx",
-                "kokoro-en-v0_19/voices.bin",
-                "kokoro-en-v0_19/tokens.txt"
+                "kokoro-en-v0_19/voices.bin"
             )
 
             for (file in requiredFiles) {
